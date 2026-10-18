@@ -1,0 +1,15 @@
+# Install: see extras/README.md. Settings go in /etc/default/strata-wake-proxy.
+[Unit]
+Description=Strata wake-on-request proxy (starts the strata container on a model request)
+After=docker.service network-online.target
+Wants=docker.service network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/default/strata-wake-proxy
+ExecStart=/usr/bin/python3 /usr/local/sbin/strata-wake-proxy.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

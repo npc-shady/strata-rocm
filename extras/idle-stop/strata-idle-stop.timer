@@ -1,0 +1,10 @@
+[Unit]
+Description=Every minute: stop Strata if it has been idle long enough
+
+[Timer]
+OnCalendar=minutely
+AccuracySec=5s
+Unit=strata-idle-stop.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,42 @@
+# Strata on an AMD GPU (RX 9060 XT / 9070 XT / 7900 XT / 7900 XTX, Radeon AI PRO R9700).
+#   ./configure.sh            # writes .env for this PC
+#   ./build-image.sh          # builds strata-rocm:local for this PC's card
+#   docker compose up -d && docker compose logs -f
+# The first start downloads and prepares the model (70-80 GB, a while); later
+# starts take 1-3 minutes. Stop with `docker compose down`.
+name: strata
+services:
+  strata:
+    image: "${STRATA_IMAGE:-strata-rocm:local}"
+    container_name: "${STRATA_CONTAINER:-strata}"
+    restart: "no"                       # "unless-stopped" to start it at boot
+    ports:
+      # 127.0.0.1 = this PC only; STRATA_BIND=0.0.0.0 serves the LAN
+      - "${STRATA_BIND:-127.0.0.1}:${STRATA_PORT:-8081}:8080"
+    devices:
+      - "/dev/kfd:/dev/kfd"
+      - "/dev/dri:/dev/dri"
+    group_add:                          # numeric IDs (configure.sh fills them in)
+      - "${VIDEO_GID:?set VIDEO_GID in .env (getent group video)}"
+      - "${RENDER_GID:?set RENDER_GID in .env (getent group render)}"
+    ipc: host
+    ulimits:
+      memlock:                          # Strata pins RAM for transfers to the card
+        soft: -1
+        hard: -1
+    stop_grace_period: 120s             # releasing tens of GB of pinned RAM takes time
+    environment:
+      MODEL: "${STRATA_MODEL:-IQ3_XXS}"
+      CONTEXT: "${STRATA_CONTEXT:-65536}"
+      LOW_RAM: "${STRATA_LOW_RAM:-on}"
+      KV: "${STRATA_KV:-}"              # empty = Strata's default (int8)
+      KV_STREAMING: "${STRATA_KV_STREAMING:-}"   # empty = Strata's default (auto)
+      GPU: "${STRATA_GPU:-}"            # one card, by number, on a PC with several
+      GPUS: "${STRATA_GPUS:-}"          # "0,1" or "all": split one model across cards
+      VISION: "no"
+      HOST: "0.0.0.0"
+      PORT: "8080"
+      API_KEY: "${STRATA_API_KEY:?set STRATA_API_KEY in .env}"
+      REINSTALL: "${STRATA_REINSTALL:-0}"
+    volumes:
+      - "${STRATA_DATA:-./strata-data}:/data"

@@ -1,0 +1,6 @@
+.env
+.env.bak
+strata-data/
+build-*.log
+__pycache__/
+*.pyc

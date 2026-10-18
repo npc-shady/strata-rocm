@@ -1,0 +1,8 @@
+[Unit]
+Description=Stop the Strata container when it has been idle (see strata-idle-stop.sh)
+After=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/default/strata-idle-stop
+ExecStart=/usr/local/sbin/strata-idle-stop.sh
