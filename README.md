@@ -48,7 +48,7 @@ welcome.
 ## Quick start
 
 ```bash
-git clone https://github.com/<you>/strata-rocm.git
+git clone https://github.com/npc-shady/strata-rocm.git
 cd strata-rocm
 ./configure.sh                 # finds your card, writes .env with a new API key
 ./build-image.sh               # 20-40 min: pulls ROCm, compiles the engine for your card
