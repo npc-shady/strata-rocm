@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Write .env for this PC: finds the AMD card and its VRAM, the RAM, the video and
-# render group IDs, picks a starting model and context, and makes an API key.
+# render group IDs, picks upstream's image flavour for the card, a starting model
+# and context, and makes an API key.
 #
 #   ./configure.sh           # will not replace an existing .env
 #   ./configure.sh --force   # replace it (the old one is kept as .env.bak)
@@ -25,11 +26,12 @@ ram_gib=$(awk '/^MemTotal/ {printf "%d", $2/1048576 + 0.5}' /proc/meminfo)
 
 # Context: what the card can keep next to a useful expert cache. Only the 32 GB
 # row has been measured (R9700, see README); the others are conservative guesses.
-if   [ "$vram_gib" -ge 30 ]; then ctx=262144
-elif [ "$vram_gib" -ge 20 ]; then ctx=131072
-elif [ "$vram_gib" -ge 14 ]; then ctx=65536
-else                              ctx=32768
+if   [ "$vram_gib" -ge 30 ]; then ctx=256k
+elif [ "$vram_gib" -ge 20 ]; then ctx=128k
+elif [ "$vram_gib" -ge 14 ]; then ctx=64k
+else                              ctx=32k
 fi
+flavor=$(arch_to_flavor "$arch")
 # Model: IQ3_XXS wants ~43 GB of RAM for the experts the card can't hold;
 # below ~56 GB of RAM start with the smaller IQ2_XS (~36 GB).
 if [ "$ram_gib" -ge 56 ]; then model=IQ3_XXS; else model=IQ2_XS; fi
@@ -62,19 +64,24 @@ STRATA_API_KEY=$key
 VIDEO_GID=$video_gid
 RENDER_GID=$render_gid
 
+STRATA_IMAGE=ghcr.io/niko1221/strata:latest-$flavor
+
+STRATA_FAMILY=qwen
 STRATA_MODEL=$model
 STRATA_CONTEXT=$ctx
-STRATA_LOW_RAM=on
-STRATA_REINSTALL=0
 STRATA_KV=
-STRATA_KV_STREAMING=
+STRATA_DRAFTING=
+STRATA_PARALLEL=
+STRATA_VISION=off
+STRATA_TUNE=skip
+STRATA_RETUNE=0
+STRATA_SET=
 
-STRATA_IMAGE=strata-rocm:local
 STRATA_DATA=./strata-data
 STRATA_BIND=127.0.0.1
 STRATA_PORT=8081
 ENV
 
-echo "Wrote .env: $arch, ${vram_gib} GB VRAM, ${ram_gib} GB RAM -> MODEL=$model CONTEXT=$ctx"
+echo "Wrote .env: $arch, ${vram_gib} GB VRAM, ${ram_gib} GB RAM -> image $flavor, MODEL=$model CONTEXT=$ctx"
 [ "$ram_gib" -lt 40 ] && echo "Note: under 40 GB of RAM Strata reads more of the model from disk; use an NVMe SSD for STRATA_DATA."
-echo "API key: in .env (STRATA_API_KEY). Next: ./build-image.sh, then docker compose up -d"
+echo "API key: in .env (STRATA_API_KEY). Next: docker compose pull && docker compose up -d"

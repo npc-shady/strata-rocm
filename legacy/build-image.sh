@@ -11,7 +11,7 @@
 # Tags the result strata-rocm:<rocm>-<gpu> and strata-rocm:local (what compose.yaml runs).
 set -euo pipefail
 cd "$(dirname "$0")"
-. lib/gpu.sh
+. ../lib/gpu.sh
 
 gpu=auto
 rocm_tag=7.2.1-complete

@@ -1,13 +1,14 @@
-# Strata on an AMD GPU (RX 9060 XT / 9070 XT / 7900 XT / 7900 XTX, Radeon AI PRO R9700).
-#   ./configure.sh            # writes .env for this PC
-#   ./build-image.sh          # builds strata-rocm:local for this PC's card
+# Strata on an AMD GPU (RX 9060 XT / 9070 XT / 7900 XT / 7900 XTX, Radeon AI PRO R9700),
+# using upstream's official image: ghcr.io/niko1221/strata:<version>-rocm-gfx120x or -rocm-gfx110x.
+#   ./configure.sh            # writes .env for this PC (picks the image flavour for your card)
+#   docker compose pull       # about 0.8 GB download
 #   docker compose up -d && docker compose logs -f
 # The first start downloads and prepares the model (70-80 GB, a while); later
 # starts take 1-3 minutes. Stop with `docker compose down`.
 name: strata
 services:
   strata:
-    image: "${STRATA_IMAGE:-strata-rocm:local}"
+    image: "${STRATA_IMAGE:?run ./configure.sh, or set STRATA_IMAGE in .env}"
     container_name: "${STRATA_CONTAINER:-strata}"
     restart: "no"                       # "unless-stopped" to start it at boot
     ports:
@@ -19,24 +20,28 @@ services:
     group_add:                          # numeric IDs (configure.sh fills them in)
       - "${VIDEO_GID:?set VIDEO_GID in .env (getent group video)}"
       - "${RENDER_GID:?set RENDER_GID in .env (getent group render)}"
-    ipc: host
+    shm_size: 2gb
     ulimits:
       memlock:                          # Strata pins RAM for transfers to the card
         soft: -1
         hard: -1
-    stop_grace_period: 120s             # releasing tens of GB of pinned RAM takes time
+    stop_grace_period: 2m               # releasing tens of GB of pinned RAM takes time
+    # No mem_limit: Strata plans from the host's RAM, and a low limit gets the
+    # container killed while the model loads.
     environment:
-      MODEL: "${STRATA_MODEL:-IQ3_XXS}"
-      CONTEXT: "${STRATA_CONTEXT:-65536}"
-      LOW_RAM: "${STRATA_LOW_RAM:-on}"
-      KV: "${STRATA_KV:-}"              # empty = Strata's default (int8)
-      KV_STREAMING: "${STRATA_KV_STREAMING:-}"   # empty = Strata's default (auto)
+      FAMILY: "${STRATA_FAMILY:-qwen}"
+      MODEL: "${STRATA_MODEL:-}"        # empty = Strata picks for the card (and says so in the log)
+      CONTEXT: "${STRATA_CONTEXT:-}"    # empty = the largest that fits
+      KV: "${STRATA_KV:-}"              # empty = int8
+      DRAFTING: "${STRATA_DRAFTING:-}"  # empty = auto (MTP on RDNA 4)
+      PARALLEL: "${STRATA_PARALLEL:-}"  # empty = fitted to the card
       GPU: "${STRATA_GPU:-}"            # one card, by number, on a PC with several
       GPUS: "${STRATA_GPUS:-}"          # "0,1" or "all": split one model across cards
-      VISION: "no"
-      HOST: "0.0.0.0"
+      STRATA_SET: "${STRATA_SET:-}"     # engine settings, space separated
+      TUNE: "${STRATA_TUNE:-skip}"
+      RETUNE: "${STRATA_RETUNE:-0}"
+      VISION: "${STRATA_VISION:-off}"
       PORT: "8080"
       API_KEY: "${STRATA_API_KEY:?set STRATA_API_KEY in .env}"
-      REINSTALL: "${STRATA_REINSTALL:-0}"
     volumes:
       - "${STRATA_DATA:-./strata-data}:/data"

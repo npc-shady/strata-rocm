@@ -1,10 +1,10 @@
 # shellcheck shell=bash
-# Shared by build-image.sh and configure.sh. Reads the AMD cards from the kernel
-# (amdgpu + KFD in sysfs), so the host needs no ROCm install.
+# Shared by configure.sh and legacy/build-image.sh. Reads the AMD cards from the
+# kernel (amdgpu + KFD in sysfs), so the host needs no ROCm install.
 
-# Cards this repo is built and documented for. Strata itself also lists gfx1101
-# (RX 7800 XT / 7700 XT) and some older cards; see its docs.
-SUPPORTED_ARCHS="gfx1100 gfx1101 gfx1200 gfx1201"
+# Cards this repo is written for. Upstream's images cover them in two flavours:
+# rocm-gfx120x (RDNA 4) and rocm-gfx110x (RDNA 3).
+SUPPORTED_ARCHS="gfx1100 gfx1101 gfx1102 gfx1200 gfx1201"
 SYSFS="${STRATA_SYSFS:-/sys}"     # overridable for testing
 
 # A card name -> its GPU architecture.
@@ -14,7 +14,17 @@ gpu_name_to_arch() {
     9060xt|rx9060xt|9060|rx9060)                                   echo gfx1200 ;;
     7900xtx|rx7900xtx|7900xt|rx7900xt|7900gre|rx7900gre)          echo gfx1100 ;;
     7800xt|rx7800xt|7700xt|rx7700xt)                              echo gfx1101 ;;
+    7600xt|rx7600xt)                                              echo gfx1102 ;;
     gfx*) printf '%s\n' "$1" ;;
+    *) return 1 ;;
+  esac
+}
+
+# A GPU architecture -> the flavour of upstream's image that runs it.
+arch_to_flavor() {
+  case "$1" in
+    gfx1200|gfx1201)         echo rocm-gfx120x ;;
+    gfx1100|gfx1101|gfx1102) echo rocm-gfx110x ;;
     *) return 1 ;;
   esac
 }
