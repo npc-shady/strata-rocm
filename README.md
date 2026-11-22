@@ -126,9 +126,27 @@ upstream's [docs/DOCKER.md](https://github.com/Niko1221/Strata/blob/main/docs/DO
 
 ## Measured: Radeon AI PRO R9700, 64 GB RAM
 
+**Official image, Strata 0.2.19 (engine 0.1.65), IQ3_S at 256K**, MTP `--spec 4`,
+`STRATA_PARALLEL=1`, `STRATA_RAM_KEEP_GIB=12`, 220 W card cap, with three VMs, a
+media server and game servers on the same PC. Coding-agent sessions (Goose,
+OpenCode), cache warm:
+
+| | IQ3_S, 256K, official image |
+|---|---|
+| Experts in VRAM | 11,565 (21.9 GB) |
+| Writing speed | 82-116 t/s at 14K context; 72-81 t/s at 30-34K |
+| Prompt reading, fresh prompt | 1,800-2,240 t/s (14-30K tokens) |
+| VRAM hit rate | 92-95% once warm (85-87% on the first requests) |
+| Whole session | 77.0 t/s written (10 requests, 30-34K context) |
+
+Against the self-built 0.1.x image on the same card: prompt reading is about 2.5-3x
+faster and writing about the same to 20% faster. Two settings matter (see Good to know): one
+slot (upstream's default of 4 slots left only 3,837 experts in VRAM, about 50 t/s),
+and a RAM reserve on a PC that runs other things.
+
 On the self-built image (Strata 0.1.x, ROCm 7.2.1), `LOW_RAM=on`, KV cache int8,
 MTP on, with a media server, game servers and other containers running on the
-same PC. Numbers for the official image will follow.
+same PC:
 
 | | IQ2_XS, 64K | IQ3_XXS, 64K | IQ3_XXS, 256K | IQ3_S, 256K |
 |---|---|---|---|---|
@@ -168,11 +186,20 @@ Quality of the sizes against the full Q8_0 model, from Strata's own tables
   proxy so the card can sleep when nothing is using it.
 - **Run compose from this folder**, so it finds `.env`. Without it, even
   `docker compose down` refuses to run, because the API key is required.
-- **No memory limit.** Strata plans from the host's RAM; a container memory
-  limit gets it killed while the model loads.
-- **Parallel requests.** One request alone gets MTP drafting (the fastest single
-  stream). Requests that share the card are batched and decode without drafts.
-  `STRATA_PARALLEL=1` keeps it to one at a time.
+- **No memory limit, but a RAM reserve.** Strata plans from the host's RAM; a
+  container memory limit gets it killed while the model loads. By default it
+  copies every expert the card can't hold into *pinned* RAM (about 50 GB for
+  IQ3_S on 64 GB), which nothing else can get back. On a PC that also runs VMs
+  or other services, set `STRATA_SET=STRATA_RAM_KEEP_GIB=12` (the GB to leave
+  free): it then keeps the hottest experts in RAM up to that line and reads the
+  rest from the model files. On the R9700 that freed about 10 GB for a small
+  cost in writing speed.
+- **One request at a time (`STRATA_PARALLEL=1`, the default here).** Upstream's
+  own default fits several slots to the card, and each slot holds a KV cache in
+  VRAM. On the R9700 at 256K it chose 4, which took 14.6 GiB from the expert
+  cache (about 3,800 experts instead of about 11,000) and cut writing speed from
+  about 70 to about 50 t/s. Batched requests also decode without MTP drafts.
+  Raise it only if several people use Strata at once.
 - **Several cards:** `STRATA_GPUS=0,1` (or `all`) shares one model across cards,
   and `STRATA_GPU=1` uses one card only. Not tested here; see Strata's
   docs/MULTI_GPU.md.

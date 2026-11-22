@@ -34,7 +34,7 @@ services:
       CONTEXT: "${STRATA_CONTEXT:-}"    # empty = the largest that fits
       KV: "${STRATA_KV:-}"              # empty = int8
       DRAFTING: "${STRATA_DRAFTING:-}"  # empty = auto (MTP on RDNA 4)
-      PARALLEL: "${STRATA_PARALLEL:-}"  # empty = fitted to the card
+      PARALLEL: "${STRATA_PARALLEL:-1}" # 1 = all spare VRAM to experts (see .env.example)
       GPU: "${STRATA_GPU:-}"            # one card, by number, on a PC with several
       GPUS: "${STRATA_GPUS:-}"          # "0,1" or "all": split one model across cards
       STRATA_SET: "${STRATA_SET:-}"     # engine settings, space separated
